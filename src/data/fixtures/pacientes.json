@@ -1,0 +1,54 @@
+[
+  {
+    "id": "PAC-001",
+    "apellido": "Gómez",
+    "nombre": "Lucía",
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "30123456",
+    "fechaNacimiento": "1985-04-12",
+    "coberturaMedica": "publica",
+    "coberturaId": "COB-001",
+    "telefono": "3815551001",
+    "email": "lucia.gomez@example.com",
+    "activo": true
+  },
+  {
+    "id": "PAC-002",
+    "apellido": "Fernández",
+    "nombre": "Martín",
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "32456789",
+    "fechaNacimiento": "1990-08-25",
+    "coberturaMedica": "privada",
+    "coberturaId": "COB-002",
+    "telefono": "3815551002",
+    "email": "martin.fernandez@example.com",
+    "activo": true
+  },
+  {
+    "id": "PAC-003",
+    "apellido": "Pérez",
+    "nombre": "Sofía",
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "35678901",
+    "fechaNacimiento": "1995-02-18",
+    "coberturaMedica": "particular",
+    "coberturaId": "COB-003",
+    "telefono": "3815551003",
+    "email": "sofia.perez@example.com",
+    "activo": true
+  },
+  {
+    "id": "PAC-004",
+    "apellido": "Rodríguez",
+    "nombre": "Carlos",
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "28987654",
+    "fechaNacimiento": "1978-11-03",
+    "coberturaMedica": "publica",
+    "coberturaId": "COB-001",
+    "telefono": "3815551004",
+    "email": "carlos.rodriguez@example.com",
+    "activo": false
+  }
+]

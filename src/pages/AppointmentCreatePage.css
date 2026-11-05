@@ -1,0 +1,142 @@
+
+.appointment-create-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.appointment-create-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.appointment-create-back:hover {
+  text-decoration: underline;
+}
+
+.appointment-create-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.appointment-create-eyebrow {
+  color: var(--primary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.appointment-create-header h1 {
+  margin: 8px 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-2xl);
+}
+
+.appointment-create-header p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.appointment-create-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: var(--radius-lg);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.appointment-create-section {
+  margin-bottom: 30px;
+}
+
+.appointment-create-section h2 {
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+}
+
+.appointment-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.appointment-create-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.appointment-create-comments label {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.appointment-create-comments textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  resize: vertical;
+}
+
+.appointment-create-comments textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.appointment-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-default);
+}
+
+@media (max-width: 700px) {
+  .appointment-create-page {
+    padding: 20px 14px;
+  }
+
+  .appointment-create-header h1 {
+    font-size: var(--font-size-xl);
+  }
+
+  .appointment-create-icon {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+  }
+
+  .appointment-create-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .appointment-create-actions {
+    flex-direction: column-reverse;
+  }
+
+  .appointment-create-actions button {
+    width: 100%;
+  }
+}

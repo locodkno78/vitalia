@@ -1,0 +1,22 @@
+[
+  {
+    "idEspecialidad": "ESP-001",
+    "nombre": "Clínica Médica",
+    "habilitada": true
+  },
+  {
+    "idEspecialidad": "ESP-002",
+    "nombre": "Pediatría",
+    "habilitada": true
+  },
+  {
+    "idEspecialidad": "ESP-003",
+    "nombre": "Cardiología",
+    "habilitada": true
+  },
+  {
+    "idEspecialidad": "ESP-004",
+    "nombre": "Dermatología",
+    "habilitada": false
+  }
+]

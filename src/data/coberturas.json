@@ -1,0 +1,26 @@
+[
+  {
+    "idCobertura": "cov-publica",
+    "nombre": "Sistema público de salud",
+    "tipo": "publica",
+    "habilitada": true
+  },
+  {
+    "idCobertura": "cov-privada",
+    "nombre": "Cobertura Médica Integral",
+    "tipo": "privada",
+    "habilitada": true
+  },
+  {
+    "idCobertura": "cov-particular",
+    "nombre": "Particular",
+    "tipo": "particular",
+    "habilitada": true
+  },
+  {
+    "idCobertura": "cov-antigua",
+    "nombre": "Cobertura anterior",
+    "tipo": "privada",
+    "habilitada": false
+  }
+]

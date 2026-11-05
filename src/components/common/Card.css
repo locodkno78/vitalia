@@ -1,0 +1,36 @@
+.card {
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
+
+/* Variantes */
+
+.card--default {
+  box-shadow: none;
+}
+
+.card--outlined {
+  border-width: 2px;
+  box-shadow: none;
+}
+
+.card--elevated {
+  box-shadow: var(--shadow-md);
+  border-color: transparent;
+}
+
+/* Espaciado */
+
+.card--padding-sm {
+  padding: var(--space-3);
+}
+
+.card--padding-md {
+  padding: var(--space-5);
+}
+
+.card--padding-lg {
+  padding: var(--space-6);
+}

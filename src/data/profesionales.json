@@ -1,0 +1,30 @@
+[
+  {
+    "idProfesional": "prof-001",
+    "apellido": "Gómez",
+    "nombre": "Laura",
+    "especialidadId": "esp-001",
+    "activo": true
+  },
+  {
+    "idProfesional": "prof-002",
+    "apellido": "Fernández",
+    "nombre": "Martín",
+    "especialidadId": "esp-002",
+    "activo": true
+  },
+  {
+    "idProfesional": "prof-003",
+    "apellido": "Pérez",
+    "nombre": "Carolina",
+    "especialidadId": "esp-003",
+    "activo": true
+  },
+  {
+    "idProfesional": "prof-004",
+    "apellido": "Rodríguez",
+    "nombre": "Diego",
+    "especialidadId": "esp-004",
+    "activo": false
+  }
+]

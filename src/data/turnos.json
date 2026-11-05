@@ -1,0 +1,47 @@
+[
+  {
+    "idTurno": "tur-001",
+    "pacienteId": "pac-001",
+    "especialidadId": "esp-001",
+    "profesionalId": "prof-001",
+    "fechaTurno": "2026-11-07",
+    "horaTurno": "09:00",
+    "confirmado": false,
+    "fechaConfirmacion": null,
+    "viaConfirmacion": null,
+    "comentarios": "Primera consulta",
+    "horaIngreso": null,
+    "horaEgreso": null,
+    "ausente": false
+  },
+  {
+    "idTurno": "tur-002",
+    "pacienteId": "pac-002",
+    "especialidadId": "esp-002",
+    "profesionalId": "prof-002",
+    "fechaTurno": "2026-11-10",
+    "horaTurno": "10:30",
+    "confirmado": true,
+    "fechaConfirmacion": "2026-11-08",
+    "viaConfirmacion": "whatsapp",
+    "comentarios": "Control periódico",
+    "horaIngreso": null,
+    "horaEgreso": null,
+    "ausente": false
+  },
+  {
+    "idTurno": "tur-003",
+    "pacienteId": "pac-003",
+    "especialidadId": "esp-003",
+    "profesionalId": "prof-003",
+    "fechaTurno": "2026-11-12",
+    "horaTurno": "11:00",
+    "confirmado": true,
+    "fechaConfirmacion": "2026-11-10",
+    "viaConfirmacion": "sms",
+    "comentarios": "",
+    "horaIngreso": "10:55",
+    "horaEgreso": "11:30",
+    "ausente": false
+  }
+]

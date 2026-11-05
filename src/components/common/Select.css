@@ -1,0 +1,60 @@
+.select-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.select-label {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.select-required {
+  color: var(--danger);
+}
+
+.select-control {
+  width: 100%;
+  min-height: 42px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.select-control:focus {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+.select-control--error {
+  border-color: var(--danger);
+}
+
+.select-control:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.select-control option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.select-hint,
+.select-error {
+  font-size: var(--font-size-xs);
+}
+
+.select-hint {
+  color: var(--text-secondary);
+}
+
+.select-error {
+  color: var(--danger);
+  font-weight: 500;
+}

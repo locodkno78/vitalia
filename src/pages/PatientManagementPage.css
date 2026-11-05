@@ -1,0 +1,152 @@
+
+.patient-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.patient-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.patient-page__eyebrow {
+  color: var(--primary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.patient-page__header h1 {
+  margin: 6px 0;
+  color: var(--text-primary);
+}
+
+.patient-page__header p {
+  color: var(--text-secondary);
+}
+
+.patient-search {
+  position: relative;
+  max-width: 420px;
+}
+
+.patient-search > svg {
+  position: absolute;
+  right: 14px;
+  bottom: 13px;
+  color: var(--text-muted);
+}
+
+.patient-results {
+  margin: 22px 0 14px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.patient-table-wrapper {
+  overflow-x: auto;
+}
+
+.patient-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.patient-table th,
+.patient-table td {
+  padding: 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.patient-table th {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.patient-table td {
+  color: var(--text-primary);
+}
+
+.patient-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.patient-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.patient-mobile-list {
+  display: none;
+}
+
+.patient-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.patient-form__error {
+  color: var(--danger);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 768px) {
+  .patient-page {
+    padding: 20px 16px;
+  }
+
+  .patient-page__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .patient-table-wrapper {
+    display: none;
+  }
+
+  .patient-mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .patient-mobile-card {
+    padding: 16px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+  }
+
+  .patient-mobile-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .patient-mobile-card__header h2 {
+    font-size: var(--font-size-md);
+  }
+
+  .patient-mobile-card p {
+    margin: 8px 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+  }
+
+  .patient-mobile-card .patient-actions {
+    margin-top: 14px;
+  }
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "pac-001",
+    "apellido": "Martínez",
+    "nombre": "Ana",
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "30123456",
+    "fechaNacimiento": "1983-05-12",
+    "telefono": "3815550101",
+    "email": "ana.martinez@example.com",
+    "coberturaId": "cov-privada",
+    "activo": true
+  },
+  {
+    "id": "pac-002",
+    "apellido": "López",
+    "nombre": "Carlos",
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "28987654",
+    "fechaNacimiento": "1979-09-20",
+    "telefono": "3815550102",
+    "email": "carlos.lopez@example.com",
+    "coberturaId": "cov-publica",
+    "activo": true
+  },
+  {
+    "id": "pac-003",
+    "apellido": "García",
+    "nombre": "Sofía",
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "45111222",
+    "fechaNacimiento": "2010-03-18",
+    "telefono": "3815550103",
+    "email": "sofia.garcia@example.com",
+    "coberturaId": "cov-particular",
+    "activo": true
+  },
+  {
+    "id": "pac-004",
+    "apellido": "Díaz",
+    "nombre": "Roberto",
+    "tipoDocumento": "RUT",
+    "numeroDocumento": "12345678-5",
+    "fechaNacimiento": "1968-11-25",
+    "telefono": "3815550104",
+    "email": "roberto.diaz@example.com",
+    "coberturaId": "cov-antigua",
+    "activo": false
+  }
+]

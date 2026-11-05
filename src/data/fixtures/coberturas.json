@@ -1,0 +1,20 @@
+[
+  {
+    "idCobertura": "COB-001",
+    "nombre": "Sistema Público de Salud",
+    "tipo": "publica",
+    "habilitada": true
+  },
+  {
+    "idCobertura": "COB-002",
+    "nombre": "Cobertura Médica Privada",
+    "tipo": "privada",
+    "habilitada": true
+  },
+  {
+    "idCobertura": "COB-003",
+    "nombre": "Particular",
+    "tipo": "particular",
+    "habilitada": true
+  }
+]
