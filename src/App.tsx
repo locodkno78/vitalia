@@ -25,12 +25,15 @@ import type {
 
 import { canConfirmAppointment } from "./utils/confirmationValidation";
 import { validateAppointmentDate } from "./utils/appointmentValidation";
+import { useTheme } from "./hooks/useTheme";
+import { Monitor, Moon, Sun } from "lucide-react";
 
 import "./App.css";
 
 type CurrentPage = "list" | "create" | "patients" | "masters";
 
 function App() {
+  const { mode, setMode } = useTheme();
   const [appointments, setAppointments] =
     useState<Appointment[]>(initialAppointments);
 
@@ -45,6 +48,12 @@ function App() {
   const [coverages, setCoverages] = useState<Coverage[]>(initialCoverages);
 
   const [currentPage, setCurrentPage] = useState<CurrentPage>("list");
+
+  const themeOptions = [
+    { mode: "light", label: "Claro", icon: Sun },
+    { mode: "dark", label: "Oscuro", icon: Moon },
+    { mode: "system", label: "Sistema", icon: Monitor },
+  ] as const;
 
   // Crear turno con validación centralizada.
   function handleCreateAppointment(appointment: Appointment) {
@@ -232,6 +241,26 @@ function App() {
           >
             Datos maestros
           </button>
+        </div>
+
+        <div
+          className="main-navigation__theme"
+          role="group"
+          aria-label="Tema de pantalla"
+        >
+          {themeOptions.map((option) => (
+            <button
+              key={option.mode}
+              type="button"
+              aria-label={option.label}
+              title={option.label}
+              aria-pressed={mode === option.mode}
+              className={mode === option.mode ? "active" : ""}
+              onClick={() => setMode(option.mode)}
+            >
+              <option.icon aria-hidden="true" size={18} />
+            </button>
+          ))}
         </div>
       </nav>
 
