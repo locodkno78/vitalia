@@ -1,5 +1,7 @@
+
 import type { InputHTMLAttributes } from "react";
 import { useId } from "react";
+
 import "./Input.css";
 
 interface InputProps
@@ -35,6 +37,7 @@ function Input({
     <div className="input-field">
       <label className="input-label" htmlFor={inputId}>
         {label}
+
         {required && (
           <span className="input-required" aria-hidden="true">
             {" "}*
@@ -43,22 +46,28 @@ function Input({
       </label>
 
       <input
+        {...props}
         id={inputId}
-        className={`input-control ${error ? "input-control--error" : ""} ${className}`}
+        className={`input-control ${
+          error ? "input-control--error" : ""
+        } ${className}`}
         required={required}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
-        {...props}
       />
 
-      {hint && !error && (
+      {hint && (
         <span id={hintId} className="input-hint">
           {hint}
         </span>
       )}
 
       {error && (
-        <span id={errorId} className="input-error" role="alert">
+        <span
+          id={errorId}
+          className="input-error"
+          role="alert"
+        >
           {error}
         </span>
       )}

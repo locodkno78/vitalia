@@ -1,3 +1,4 @@
+
 .input-field {
   display: flex;
   flex-direction: column;
@@ -24,19 +25,29 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    outline-color var(--transition-fast);
 }
 
 .input-control::placeholder {
   color: var(--text-muted);
 }
 
-.input-control:focus {
+/* Indicador visible al navegar con teclado */
+.input-control:focus-visible {
   border-color: var(--primary);
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .input-control--error {
   border-color: var(--danger);
+}
+
+.input-control--error:focus-visible {
+  border-color: var(--danger);
+  outline-color: var(--danger);
 }
 
 .input-control:disabled {
@@ -57,4 +68,8 @@
 .input-error {
   color: var(--danger);
   font-weight: 500;
+}
+
+.input-field:has(.input-control:disabled) {
+  opacity: 0.8;
 }

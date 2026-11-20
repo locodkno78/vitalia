@@ -1,4 +1,3 @@
-
 import pacientesJson from "./pacientes.json";
 import especialidadesJson from "./especialidades.json";
 import profesionalesJson from "./profesionales.json";

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import AppointmentListPage from "./pages/AppointmentListPage";
 import AppointmentCreatePage from "./pages/AppointmentCreatePage";
@@ -34,6 +34,7 @@ type CurrentPage = "list" | "create" | "patients" | "masters";
 
 function App() {
   const { mode, setMode } = useTheme();
+
   const [appointments, setAppointments] =
     useState<Appointment[]>(initialAppointments);
 
@@ -48,6 +49,14 @@ function App() {
   const [coverages, setCoverages] = useState<Coverage[]>(initialCoverages);
 
   const [currentPage, setCurrentPage] = useState<CurrentPage>("list");
+
+  // Referencia al contenido principal para gestionar el foco.
+  const mainContentRef = useRef<HTMLElement>(null);
+
+  // Llevar el foco al contenido principal cada vez que cambia la vista.
+  useEffect(() => {
+    mainContentRef.current?.focus();
+  }, [currentPage]);
 
   const themeOptions = [
     { mode: "light", label: "Claro", icon: Sun },
@@ -213,6 +222,7 @@ function App() {
           <button
             type="button"
             className={currentPage === "list" ? "active" : ""}
+            aria-current={currentPage === "list" ? "page" : undefined}
             onClick={() => setCurrentPage("list")}
           >
             Turnos
@@ -221,6 +231,7 @@ function App() {
           <button
             type="button"
             className={currentPage === "create" ? "active" : ""}
+            aria-current={currentPage === "create" ? "page" : undefined}
             onClick={() => setCurrentPage("create")}
           >
             Nuevo turno
@@ -229,6 +240,7 @@ function App() {
           <button
             type="button"
             className={currentPage === "patients" ? "active" : ""}
+            aria-current={currentPage === "patients" ? "page" : undefined}
             onClick={() => setCurrentPage("patients")}
           >
             Pacientes
@@ -237,6 +249,7 @@ function App() {
           <button
             type="button"
             className={currentPage === "masters" ? "active" : ""}
+            aria-current={currentPage === "masters" ? "page" : undefined}
             onClick={() => setCurrentPage("masters")}
           >
             Datos maestros
@@ -264,46 +277,53 @@ function App() {
         </div>
       </nav>
 
-      {currentPage === "create" && (
-        <AppointmentCreatePage
-          patients={patients}
-          specialties={specialties}
-          professionals={professionals}
-          onCancel={() => setCurrentPage("list")}
-          onCreate={handleCreateAppointment}
-        />
-      )}
+      <main
+        id="main-content"
+        ref={mainContentRef}
+        tabIndex={-1}
+        aria-label="Contenido principal"
+      >
+        {currentPage === "create" && (
+          <AppointmentCreatePage
+            patients={patients}
+            specialties={specialties}
+            professionals={professionals}
+            onCancel={() => setCurrentPage("list")}
+            onCreate={handleCreateAppointment}
+          />
+        )}
 
-      {currentPage === "patients" && (
-        <PatientManagementPage
-          patients={patients}
-          coverages={coverages}
-          onPatientsChange={setPatients}
-        />
-      )}
+        {currentPage === "patients" && (
+          <PatientManagementPage
+            patients={patients}
+            coverages={coverages}
+            onPatientsChange={setPatients}
+          />
+        )}
 
-      {currentPage === "masters" && (
-        <MasterDataPage
-          specialties={specialties}
-          professionals={professionals}
-          coverages={coverages}
-          onSpecialtiesChange={setSpecialties}
-          onProfessionalsChange={setProfessionals}
-          onCoveragesChange={setCoverages}
-        />
-      )}
+        {currentPage === "masters" && (
+          <MasterDataPage
+            specialties={specialties}
+            professionals={professionals}
+            coverages={coverages}
+            onSpecialtiesChange={setSpecialties}
+            onProfessionalsChange={setProfessionals}
+            onCoveragesChange={setCoverages}
+          />
+        )}
 
-      {currentPage === "list" && (
-        <AppointmentListPage
-          appointments={appointments}
-          patients={patients}
-          specialties={specialties}
-          professionals={professionals}
-          onCreateAppointment={() => setCurrentPage("create")}
-          onConfirmAppointment={handleConfirmAppointment}
-          onAttendance={handleAttendance}
-        />
-      )}
+        {currentPage === "list" && (
+          <AppointmentListPage
+            appointments={appointments}
+            patients={patients}
+            specialties={specialties}
+            professionals={professionals}
+            onCreateAppointment={() => setCurrentPage("create")}
+            onConfirmAppointment={handleConfirmAppointment}
+            onAttendance={handleAttendance}
+          />
+        )}
+      </main>
     </>
   );
 }

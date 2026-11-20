@@ -1,3 +1,4 @@
+
 .modal {
   width: calc(100% - 2rem);
   max-height: calc(100% - 2rem);
@@ -49,12 +50,14 @@
 .modal-close {
   display: grid;
   place-items: center;
+  flex-shrink: 0;
   width: 36px;
   height: 36px;
   color: var(--text-secondary);
   background: transparent;
   border: 0;
   border-radius: var(--radius-md);
+  cursor: pointer;
 }
 
 .modal-close:hover {
@@ -76,6 +79,17 @@
   border-top: 1px solid var(--border-default);
 }
 
+/* Indicador de foco para navegación por teclado */
+.modal :focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+
+/* Evita que el foco quede oculto por el borde del modal */
+.modal {
+  scroll-margin: 1rem;
+}
+
 @media (max-width: 480px) {
   .modal-footer {
     flex-direction: column-reverse;
@@ -84,9 +98,4 @@
   .modal-footer > * {
     width: 100%;
   }
-}
-
-.modal-close:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 3px;
 }

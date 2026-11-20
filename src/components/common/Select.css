@@ -1,3 +1,4 @@
+
 .select-field {
   display: flex;
   flex-direction: column;
@@ -24,15 +25,25 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    outline-color var(--transition-fast);
 }
 
-.select-control:focus {
-  outline: 2px solid var(--info);
+/* Foco visible al navegar con teclado */
+.select-control:focus-visible {
+  border-color: var(--primary);
+  outline: 3px solid var(--primary);
   outline-offset: 2px;
 }
 
 .select-control--error {
   border-color: var(--danger);
+}
+
+.select-control--error:focus-visible {
+  border-color: var(--danger);
+  outline-color: var(--danger);
 }
 
 .select-control:disabled {

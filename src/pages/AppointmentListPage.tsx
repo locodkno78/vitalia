@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from "react";
 import { CalendarPlus, Eye, Search } from "lucide-react";
 
@@ -108,6 +107,8 @@ function AppointmentListPage({
   const [confirmationChannel, setConfirmationChannel] =
     useState<ConfirmationChannel>("whatsapp");
 
+  const [actionFeedback, setActionFeedback] = useState("");
+
   const getPatientName = (patientId: string): string => {
     const patient = patients.find((item) => item.id === patientId);
 
@@ -201,6 +202,57 @@ function AppointmentListPage({
     ? getAppointmentStatus(selectedAppointment)
     : null;
 
+  function openAppointmentDetail(appointment: Appointment) {
+    setActionFeedback("");
+    setSelectedAppointment(appointment);
+  }
+
+  function closeAppointmentDetail() {
+    setSelectedAppointment(null);
+  }
+
+  function handleConfirmAppointment() {
+    if (!selectedAppointment) return;
+
+    onConfirmAppointment(
+      selectedAppointment.idTurno,
+      confirmationChannel
+    );
+
+    setActionFeedback(
+      `Se confirmó el turno de ${getPatientName(
+        selectedAppointment.pacienteId
+      )} mediante ${getConfirmationChannelName(confirmationChannel)}.`
+    );
+
+    closeAppointmentDetail();
+  }
+
+  function handleAttendance(
+    action: Exclude<AttendanceStatus, "pendiente">
+  ) {
+    if (!selectedAppointment) return;
+
+    const patientName = getPatientName(
+      selectedAppointment.pacienteId
+    );
+
+    onAttendance(selectedAppointment.idTurno, action);
+
+    const messages: Record<
+      Exclude<AttendanceStatus, "pendiente">,
+      string
+    > = {
+      ingreso: `Se registró el ingreso de ${patientName}.`,
+      egreso: `Se registró el egreso de ${patientName}.`,
+      ausente: `Se registró la ausencia de ${patientName}.`,
+    };
+
+    setActionFeedback(messages[action]);
+
+    closeAppointmentDetail();
+  }
+
   return (
     <main className="appointment-page">
       <header className="appointment-page__header">
@@ -215,7 +267,7 @@ function AppointmentListPage({
         </div>
 
         <Button onClick={onCreateAppointment}>
-          <CalendarPlus size={18} />
+          <CalendarPlus size={18} aria-hidden="true" />
           Nuevo turno
         </Button>
       </header>
@@ -260,6 +312,7 @@ function AppointmentListPage({
           className="appointment-results"
           role="status"
           aria-live="polite"
+          aria-atomic="true"
         >
           <span>
             {filteredAppointments.length}{" "}
@@ -268,6 +321,17 @@ function AppointmentListPage({
               : "turnos encontrados"}
           </span>
         </div>
+
+        {actionFeedback && (
+          <p
+            className="appointment-action-feedback"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {actionFeedback}
+          </p>
+        )}
 
         {filteredAppointments.length === 0 ? (
           <div className="appointment-empty" role="status">
@@ -294,15 +358,19 @@ function AppointmentListPage({
           <>
             <div className="appointment-table-wrapper">
               <table className="appointment-table">
+                <caption>
+                  Turnos registrados y sus estados actuales
+                </caption>
+
                 <thead>
                   <tr>
-                    <th>Paciente</th>
-                    <th>Documento</th>
-                    <th>Especialidad</th>
-                    <th>Profesional</th>
-                    <th>Fecha y hora</th>
-                    <th>Estado</th>
-                    <th>Detalle</th>
+                    <th scope="col">Paciente</th>
+                    <th scope="col">Documento</th>
+                    <th scope="col">Especialidad</th>
+                    <th scope="col">Profesional</th>
+                    <th scope="col">Fecha y hora</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Detalle</th>
                   </tr>
                 </thead>
 
@@ -354,10 +422,10 @@ function AppointmentListPage({
                               appointment.pacienteId
                             )}`}
                             onClick={() =>
-                              setSelectedAppointment(appointment)
+                              openAppointmentDetail(appointment)
                             }
                           >
-                            <Eye size={16} />
+                            <Eye size={16} aria-hidden="true" />
                             Ver
                           </Button>
                         </td>
@@ -422,9 +490,14 @@ function AppointmentListPage({
                     <Button
                       variant="outline"
                       fullWidth
-                      onClick={() => setSelectedAppointment(appointment)}
+                      aria-label={`Ver detalle del turno de ${getPatientName(
+                        appointment.pacienteId
+                      )}`}
+                      onClick={() =>
+                        openAppointmentDetail(appointment)
+                      }
                     >
-                      <Eye size={16} />
+                      <Eye size={16} aria-hidden="true" />
                       Ver detalle
                     </Button>
                   </article>
@@ -438,11 +511,11 @@ function AppointmentListPage({
       <Modal
         open={Boolean(selectedAppointment)}
         title="Detalle del turno"
-        onClose={() => setSelectedAppointment(null)}
+        onClose={closeAppointmentDetail}
         footer={
           <Button
             variant="outline"
-            onClick={() => setSelectedAppointment(null)}
+            onClick={closeAppointmentDetail}
           >
             Cerrar
           </Button>
@@ -460,8 +533,10 @@ function AppointmentListPage({
               )}
             </div>
 
-            <section>
-              <h3>Información del paciente</h3>
+            <section aria-labelledby="appointment-patient-heading">
+              <h3 id="appointment-patient-heading">
+                Información del paciente
+              </h3>
 
               <p>
                 <strong>Nombre:</strong>{" "}
@@ -484,8 +559,10 @@ function AppointmentListPage({
               </p>
             </section>
 
-            <section>
-              <h3>Información del turno</h3>
+            <section aria-labelledby="appointment-information-heading">
+              <h3 id="appointment-information-heading">
+                Información del turno
+              </h3>
 
               <p>
                 <strong>Especialidad:</strong>{" "}
@@ -514,8 +591,10 @@ function AppointmentListPage({
               </p>
             </section>
 
-            <section>
-              <h3>Confirmación</h3>
+            <section aria-labelledby="appointment-confirmation-heading">
+              <h3 id="appointment-confirmation-heading">
+                Confirmación
+              </h3>
 
               <p>
                 <strong>Confirmado:</strong>{" "}
@@ -540,8 +619,13 @@ function AppointmentListPage({
             {!selectedAppointment.confirmado &&
               !selectedAppointment.ausente &&
               canConfirmAppointment(selectedAppointment) && (
-                <section className="appointment-confirmation">
-                  <h3>Confirmar turno</h3>
+                <section
+                  className="appointment-confirmation"
+                  aria-labelledby="appointment-confirm-heading"
+                >
+                  <h3 id="appointment-confirm-heading">
+                    Confirmar turno
+                  </h3>
 
                   <p>
                     El turno se encuentra dentro del período habilitado
@@ -565,14 +649,7 @@ function AppointmentListPage({
 
                   <Button
                     fullWidth
-                    onClick={() => {
-                      onConfirmAppointment(
-                        selectedAppointment.idTurno,
-                        confirmationChannel
-                      );
-
-                      setSelectedAppointment(null);
-                    }}
+                    onClick={handleConfirmAppointment}
                   >
                     Confirmar turno
                   </Button>
@@ -582,21 +659,19 @@ function AppointmentListPage({
             {selectedAppointment.confirmado &&
               !selectedAppointment.ausente &&
               !selectedAppointment.horaEgreso && (
-                <section className="appointment-confirmation">
-                  <h3>Gestión de asistencia</h3>
+                <section
+                  className="appointment-confirmation"
+                  aria-labelledby="appointment-attendance-heading"
+                >
+                  <h3 id="appointment-attendance-heading">
+                    Gestión de asistencia
+                  </h3>
 
                   {!selectedAppointment.horaIngreso && (
                     <>
                       <Button
                         fullWidth
-                        onClick={() => {
-                          onAttendance(
-                            selectedAppointment.idTurno,
-                            "ingreso"
-                          );
-
-                          setSelectedAppointment(null);
-                        }}
+                        onClick={() => handleAttendance("ingreso")}
                       >
                         Registrar ingreso
                       </Button>
@@ -604,14 +679,7 @@ function AppointmentListPage({
                       <Button
                         fullWidth
                         variant="danger"
-                        onClick={() => {
-                          onAttendance(
-                            selectedAppointment.idTurno,
-                            "ausente"
-                          );
-
-                          setSelectedAppointment(null);
-                        }}
+                        onClick={() => handleAttendance("ausente")}
                       >
                         Marcar como ausente
                       </Button>
@@ -626,14 +694,7 @@ function AppointmentListPage({
 
                       <Button
                         fullWidth
-                        onClick={() => {
-                          onAttendance(
-                            selectedAppointment.idTurno,
-                            "egreso"
-                          );
-
-                          setSelectedAppointment(null);
-                        }}
+                        onClick={() => handleAttendance("egreso")}
                       >
                         Registrar egreso
                       </Button>

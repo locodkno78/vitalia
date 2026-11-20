@@ -1,4 +1,6 @@
+
 import { useId, type SelectHTMLAttributes } from "react";
+
 import "./Select.css";
 
 export interface SelectOption {
@@ -44,6 +46,7 @@ function Select({
     <div className="select-field">
       <label className="select-label" htmlFor={selectId}>
         {label}
+
         {required && (
           <span className="select-required" aria-hidden="true">
             {" "}*
@@ -52,12 +55,14 @@ function Select({
       </label>
 
       <select
+        {...props}
         id={selectId}
-        className={`select-control ${error ? "select-control--error" : ""} ${className}`}
+        className={`select-control ${
+          error ? "select-control--error" : ""
+        } ${className}`}
         required={required}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
-        {...props}
       >
         <option value="" disabled>
           {placeholder}
@@ -74,14 +79,18 @@ function Select({
         ))}
       </select>
 
-      {hint && !error && (
+      {hint && (
         <span id={hintId} className="select-hint">
           {hint}
         </span>
       )}
 
       {error && (
-        <span id={errorId} className="select-error" role="alert">
+        <span
+          id={errorId}
+          className="select-error"
+          role="alert"
+        >
           {error}
         </span>
       )}

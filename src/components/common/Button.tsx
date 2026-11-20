@@ -1,4 +1,6 @@
+
 import type { ReactNode, ButtonHTMLAttributes } from "react";
+
 import "./Button.css";
 
 export type ButtonVariant =
@@ -42,13 +44,20 @@ function Button({
 
   return (
     <button
+      {...props}
       type={type}
       className={classes}
       disabled={disabled || loading}
       aria-busy={loading}
-      {...props}
     >
-      {loading ? "Cargando..." : children}
+      {loading ? (
+        <>
+          <span aria-hidden="true" className="btn-spinner" />
+          <span role="status">Procesando...</span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }

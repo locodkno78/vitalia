@@ -1,4 +1,12 @@
-import { useMemo, useState, type ChangeEvent } from "react";
+import {
+  useMemo,
+  useState,
+  useReducer,
+  useRef,
+  useEffect,
+  type ChangeEvent,
+} from "react";
+
 import { Pencil, Power, Search, UserPlus } from "lucide-react";
 
 import type { Patient, DocumentType, Coverage } from "../types";
@@ -9,6 +17,13 @@ import Input from "../components/common/Input";
 import Modal from "../components/common/Modal";
 import Select from "../components/common/Select";
 import StatusBadge from "../components/common/StatusBadge";
+
+import {
+  patientFormReducer,
+  type PatientDraft,
+} from "../states/patientState";
+
+import { findPatientByDocument } from "../services/patientService";
 
 import "./PatientManagementPage.css";
 
@@ -50,15 +65,10 @@ function getCoverageName(
     : `${coverage.nombre} (Deshabilitada)`;
 }
 
-function PatientManagementPage({
-  patients,
-  coverages,
-  onPatientsChange,
-}: PatientManagementPageProps) {
-  const [searchDocument, setSearchDocument] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Omit<Patient, "id">>(() => ({
+function createEmptyPatient(
+  coverages: Coverage[]
+): PatientDraft {
+  return {
     apellido: "",
     nombre: "",
     tipoDocumento: "DNI",
@@ -67,9 +77,38 @@ function PatientManagementPage({
     telefono: "",
     email: "",
     coberturaId: getDefaultCoverageId(coverages),
+  };
+}
+
+function PatientManagementPage({
+  patients,
+  coverages,
+  onPatientsChange,
+}: PatientManagementPageProps) {
+  const [searchDocument, setSearchDocument] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState<Omit<Patient, "id">>(() => ({
+    ...createEmptyPatient(coverages),
     activo: true,
   }));
+
   const [error, setError] = useState("");
+
+  const [patientForm, dispatchPatientForm] = useReducer(
+    patientFormReducer,
+    coverages,
+    (initialCoverages) => ({
+      status: "draft" as const,
+      values: createEmptyPatient(initialCoverages),
+      documentVerified: false,
+    })
+  );
+
+  const requestCounter = useRef(0);
+  const isSubmittingRef = useRef(false);
+  const feedbackRef = useRef<HTMLParagraphElement | HTMLDivElement>(null);
 
   const filteredPatients = useMemo(() => {
     const search = searchDocument.trim().toLowerCase();
@@ -79,8 +118,6 @@ function PatientManagementPage({
     );
   }, [patients, searchDocument]);
 
-  // Las coberturas deshabilitadas no se ofrecen para pacientes nuevos.
-  // Al editar, se conserva la cobertura actual aunque esté deshabilitada.
   const coverageOptions = useMemo(() => {
     return coverages
       .filter(
@@ -103,20 +140,66 @@ function PatientManagementPage({
     { value: "OTRO", label: "Otro" },
   ];
 
+  const isCheckingDocument =
+    patientForm.status === "checking-document";
+
+  const isProcessing =
+    patientForm.status === "processing";
+
+  const isSuccess =
+    patientForm.status === "success";
+
+  const canRetryLookup =
+    patientForm.status === "error" &&
+    patientForm.stage === "lookup" &&
+    patientForm.retryable;
+
+  const canRetrySubmit =
+    patientForm.status === "error" &&
+    patientForm.stage === "submit" &&
+    patientForm.retryable;
+
+  const feedbackMessage =
+    error ||
+    (patientForm.status === "error"
+      ? patientForm.message
+      : "");
+
+  // Lleva el foco al mensaje cuando aparece un error o un éxito.
+  useEffect(() => {
+    if (
+      showModal &&
+      (feedbackMessage ||
+        patientForm.status === "error" ||
+        isSuccess)
+    ) {
+      feedbackRef.current?.focus();
+    }
+  }, [
+    showModal,
+    feedbackMessage,
+    patientForm.status,
+    isSuccess,
+  ]);
+
   function openNewPatient() {
+    const emptyPatient = createEmptyPatient(coverages);
+
     setEditingId(null);
+
     setFormData({
-      apellido: "",
-      nombre: "",
-      tipoDocumento: "DNI",
-      numeroDocumento: "",
-      fechaNacimiento: "",
-      telefono: "",
-      email: "",
-      coberturaId: getDefaultCoverageId(coverages),
+      ...emptyPatient,
       activo: true,
     });
+
     setError("");
+    isSubmittingRef.current = false;
+
+    dispatchPatientForm({
+      type: "RESET",
+      values: emptyPatient,
+    });
+
     setShowModal(true);
   }
 
@@ -126,13 +209,28 @@ function PatientManagementPage({
     setEditingId(id);
     setFormData(data);
     setError("");
+    isSubmittingRef.current = false;
+
+    dispatchPatientForm({
+      type: "RESET",
+      values: createEmptyPatient(coverages),
+    });
+
     setShowModal(true);
   }
 
   function closeModal() {
+    if (isProcessing) return;
+
     setShowModal(false);
     setEditingId(null);
     setError("");
+    isSubmittingRef.current = false;
+
+    dispatchPatientForm({
+      type: "RESET",
+      values: createEmptyPatient(coverages),
+    });
   }
 
   function updateField(
@@ -143,43 +241,183 @@ function PatientManagementPage({
       ...previous,
       [field]: value,
     }));
+
+    if (field !== "activo" && !editingId) {
+      dispatchPatientForm({
+        type: "CHANGE",
+        values: {
+          [field]: value,
+        } as Partial<PatientDraft>,
+      });
+    }
+
+    setError("");
   }
 
-  function handleSave() {
+  function validateForm(): string {
+    if (!formData.nombre.trim()) {
+      return "Ingresá el nombre del paciente.";
+    }
+
+    if (!/^[\p{L}\s'-]{2,60}$/u.test(formData.nombre.trim())) {
+      return "El nombre debe tener entre 2 y 60 caracteres válidos.";
+    }
+
+    if (!formData.apellido.trim()) {
+      return "Ingresá el apellido del paciente.";
+    }
+
+    if (!/^[\p{L}\s'-]{2,60}$/u.test(formData.apellido.trim())) {
+      return "El apellido debe tener entre 2 y 60 caracteres válidos.";
+    }
+
+    if (!formData.numeroDocumento.trim()) {
+      return "Ingresá el número de documento.";
+    }
+
+    if (!/^[a-zA-Z0-9.-]{4,20}$/.test(formData.numeroDocumento.trim())) {
+      return "El documento debe tener entre 4 y 20 caracteres válidos.";
+    }
+
+    if (!formData.fechaNacimiento) {
+      return "Ingresá la fecha de nacimiento.";
+    }
+
+    const birthDate = new Date(
+      `${formData.fechaNacimiento}T00:00:00`
+    );
+
+    if (Number.isNaN(birthDate.getTime())) {
+      return "Ingresá una fecha de nacimiento válida.";
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (birthDate > today) {
+      return "La fecha de nacimiento no puede ser futura.";
+    }
+
+    if (!formData.telefono.trim()) {
+      return "Ingresá un teléfono de contacto.";
+    }
+
+    if (!/^[0-9+\s()-]{7,20}$/.test(formData.telefono.trim())) {
+      return "Ingresá un teléfono válido.";
+    }
+
     if (
-      !formData.nombre.trim() ||
-      !formData.apellido.trim() ||
-      !formData.numeroDocumento.trim() ||
-      !formData.fechaNacimiento ||
-      !formData.telefono.trim()
+      formData.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(formData.email.trim())
     ) {
-      setError("Completá todos los campos obligatorios.");
-      return;
+      return "Ingresá un correo electrónico válido.";
     }
 
     if (!formData.coberturaId) {
-      setError("Seleccioná una cobertura médica.");
-      return;
+      return "Seleccioná una cobertura médica.";
     }
 
     const selectedCoverage = coverages.find(
-      (coverage) => coverage.idCobertura === formData.coberturaId
+      (coverage) =>
+        coverage.idCobertura === formData.coberturaId
     );
 
     if (!selectedCoverage) {
-      setError("La cobertura seleccionada ya no está disponible.");
-      return;
+      return "La cobertura seleccionada ya no está disponible.";
     }
 
     if (!editingId && !selectedCoverage.habilitada) {
-      setError("No podés asignar una cobertura deshabilitada.");
+      return "No podés asignar una cobertura deshabilitada.";
+    }
+
+    return "";
+  }
+
+  async function handleCheckDocument() {
+    if (isCheckingDocument || isProcessing) return;
+
+    const tipoDocumento = formData.tipoDocumento;
+    const numeroDocumento = formData.numeroDocumento.trim();
+
+    if (!numeroDocumento) {
+      setError("Ingresá un número de documento.");
       return;
     }
 
+    if (!/^[a-zA-Z0-9.-]{4,20}$/.test(numeroDocumento)) {
+      setError("El documento debe tener entre 4 y 20 caracteres válidos.");
+      return;
+    }
+
+    setError("");
+
+    const requestId = String(++requestCounter.current);
+
+    if (canRetryLookup) {
+      dispatchPatientForm({
+        type: "RETRY",
+        requestId,
+      });
+    } else {
+      dispatchPatientForm({
+        type: "CHECK_DOCUMENT",
+        requestId,
+        isValid: true,
+      });
+    }
+
+    try {
+      const existingPatient = await findPatientByDocument(
+        patients,
+        {
+          tipoDocumento,
+          numeroDocumento,
+        }
+      );
+
+      if (existingPatient) {
+        dispatchPatientForm({
+          type: "DOCUMENT_TAKEN",
+          requestId,
+        });
+      } else {
+        dispatchPatientForm({
+          type: "DOCUMENT_AVAILABLE",
+          requestId,
+        });
+      }
+    } catch {
+      dispatchPatientForm({
+        type: "LOOKUP_FAILED",
+        requestId,
+        message:
+          "No pudimos verificar el documento. Intentá nuevamente.",
+      });
+    }
+  }
+
+  async function handleSave() {
+    if (isSubmittingRef.current) return;
+
+    if (isProcessing || isSuccess) return;
+
+    const validationError = validateForm();
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError("");
+
+    const normalizedDocument =
+      formData.numeroDocumento.trim().toUpperCase();
+
     const duplicatedDocument = patients.some(
       (patient) =>
-        patient.numeroDocumento.toLowerCase() ===
-          formData.numeroDocumento.trim().toLowerCase() &&
+        patient.tipoDocumento === formData.tipoDocumento &&
+        patient.numeroDocumento.trim().toUpperCase() ===
+          normalizedDocument &&
         patient.id !== editingId
     );
 
@@ -188,6 +426,7 @@ function PatientManagementPage({
       return;
     }
 
+    // La edición conserva su funcionamiento anterior.
     if (editingId) {
       const updatedPatients = patients.map((patient) =>
         patient.id === editingId
@@ -196,16 +435,85 @@ function PatientManagementPage({
       );
 
       onPatientsChange(updatedPatients);
+      closeModal();
+      return;
+    }
+
+    const isDraft = patientForm.status === "draft";
+
+    const sameDocument =
+      isDraft &&
+      patientForm.values.tipoDocumento === formData.tipoDocumento &&
+      patientForm.values.numeroDocumento.trim().toUpperCase() ===
+        normalizedDocument;
+
+    const isRetryingSubmit = canRetrySubmit;
+
+    if (
+      !isRetryingSubmit &&
+      (!isDraft || !patientForm.documentVerified || !sameDocument)
+    ) {
+      setError(
+        "Verificá el documento antes de registrar al paciente."
+      );
+      return;
+    }
+
+    isSubmittingRef.current = true;
+
+    const requestId = String(++requestCounter.current);
+
+    if (isRetryingSubmit) {
+      dispatchPatientForm({
+        type: "RETRY",
+        requestId,
+      });
     } else {
+      dispatchPatientForm({
+        type: "SUBMIT",
+        requestId,
+        isValid: true,
+      });
+    }
+
+    try {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 500);
+      });
+
       const newPatient: Patient = {
         ...formData,
+        nombre: formData.nombre.trim(),
+        apellido: formData.apellido.trim(),
+        numeroDocumento: normalizedDocument,
+        telefono: formData.telefono.trim(),
+        email: formData.email.trim(),
         id: `pac-${Date.now()}`,
+        activo: true,
       };
 
       onPatientsChange([...patients, newPatient]);
-    }
 
-    closeModal();
+      dispatchPatientForm({
+        type: "RESOLVE",
+        requestId,
+        patientId: newPatient.id,
+      });
+    } catch {
+      dispatchPatientForm({
+        type: "REJECT",
+        requestId,
+        message:
+          "No se pudo registrar el paciente. Podés intentar nuevamente.",
+        retryable: true,
+      });
+
+      setError(
+        "No se pudo registrar el paciente. Podés intentar nuevamente."
+      );
+    } finally {
+      isSubmittingRef.current = false;
+    }
   }
 
   function togglePatientStatus(patientId: string) {
@@ -225,8 +533,12 @@ function PatientManagementPage({
           <span className="patient-page__eyebrow">
             GESTIÓN DE PACIENTES
           </span>
+
           <h1>Pacientes</h1>
-          <p>Administrá los datos de los pacientes registrados.</p>
+
+          <p>
+            Administrá los datos de los pacientes registrados.
+          </p>
         </div>
 
         <Button onClick={openNewPatient}>
@@ -245,17 +557,20 @@ function PatientManagementPage({
               setSearchDocument(event.target.value)
             }
           />
+
           <Search size={20} aria-hidden="true" />
         </div>
 
-        <div className="patient-results">
+        <div className="patient-results" aria-live="polite">
           {filteredPatients.length} pacientes encontrados
         </div>
 
         {filteredPatients.length === 0 ? (
           <div className="patient-empty">
             <h2>No encontramos pacientes</h2>
-            <p>Probá con otro documento o registrá un paciente nuevo.</p>
+            <p>
+              Probá con otro documento o registrá un paciente nuevo.
+            </p>
           </div>
         ) : (
           <>
@@ -278,20 +593,31 @@ function PatientManagementPage({
                       <td>
                         {patient.nombre} {patient.apellido}
                       </td>
+
                       <td>
-                        {patient.tipoDocumento} {patient.numeroDocumento}
+                        {patient.tipoDocumento}{" "}
+                        {patient.numeroDocumento}
                       </td>
+
                       <td>{patient.telefono}</td>
+
                       <td>
-                        {getCoverageName(patient.coberturaId, coverages)}
+                        {getCoverageName(
+                          patient.coberturaId,
+                          coverages
+                        )}
                       </td>
+
                       <td>
                         <StatusBadge
-                          status={patient.activo ? "success" : "neutral"}
+                          status={
+                            patient.activo ? "success" : "neutral"
+                          }
                         >
                           {patient.activo ? "Activo" : "Inactivo"}
                         </StatusBadge>
                       </td>
+
                       <td>
                         <div className="patient-actions">
                           <Button
@@ -306,10 +632,14 @@ function PatientManagementPage({
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => togglePatientStatus(patient.id)}
+                            onClick={() =>
+                              togglePatientStatus(patient.id)
+                            }
                           >
                             <Power size={15} />
-                            {patient.activo ? "Desactivar" : "Activar"}
+                            {patient.activo
+                              ? "Desactivar"
+                              : "Activar"}
                           </Button>
                         </div>
                       </td>
@@ -321,28 +651,40 @@ function PatientManagementPage({
 
             <div className="patient-mobile-list">
               {filteredPatients.map((patient) => (
-                <article className="patient-mobile-card" key={patient.id}>
+                <article
+                  className="patient-mobile-card"
+                  key={patient.id}
+                >
                   <div className="patient-mobile-card__header">
                     <h2>
                       {patient.nombre} {patient.apellido}
                     </h2>
+
                     <StatusBadge
-                      status={patient.activo ? "success" : "neutral"}
+                      status={
+                        patient.activo ? "success" : "neutral"
+                      }
                     >
                       {patient.activo ? "Activo" : "Inactivo"}
                     </StatusBadge>
                   </div>
 
                   <p>
-                    <strong>Documento:</strong> {patient.tipoDocumento}{" "}
+                    <strong>Documento:</strong>{" "}
+                    {patient.tipoDocumento}{" "}
                     {patient.numeroDocumento}
                   </p>
+
                   <p>
                     <strong>Teléfono:</strong> {patient.telefono}
                   </p>
+
                   <p>
                     <strong>Cobertura:</strong>{" "}
-                    {getCoverageName(patient.coberturaId, coverages)}
+                    {getCoverageName(
+                      patient.coberturaId,
+                      coverages
+                    )}
                   </p>
 
                   <div className="patient-actions">
@@ -358,10 +700,14 @@ function PatientManagementPage({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => togglePatientStatus(patient.id)}
+                      onClick={() =>
+                        togglePatientStatus(patient.id)
+                      }
                     >
                       <Power size={15} />
-                      {patient.activo ? "Desactivar" : "Activar"}
+                      {patient.activo
+                        ? "Desactivar"
+                        : "Activar"}
                     </Button>
                   </div>
                 </article>
@@ -377,84 +723,199 @@ function PatientManagementPage({
         onClose={closeModal}
         footer={
           <>
-            <Button variant="outline" onClick={closeModal}>
+            <Button
+              variant="outline"
+              onClick={closeModal}
+              disabled={isProcessing}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleSave}>
-              {editingId ? "Guardar cambios" : "Registrar paciente"}
+
+            <Button
+              onClick={handleSave}
+              disabled={
+                isProcessing ||
+                isSuccess ||
+                (!editingId &&
+                  !canRetrySubmit &&
+                  (patientForm.status !== "draft" ||
+                    !patientForm.documentVerified))
+              }
+            >
+              {isProcessing
+                ? "Registrando..."
+                : isSuccess
+                  ? "Registrado"
+                  : editingId
+                    ? "Guardar cambios"
+                    : canRetrySubmit
+                      ? "Reintentar registro"
+                      : "Registrar paciente"}
             </Button>
           </>
         }
       >
-        <div className="patient-form">
-          <Input
-            label="Nombre"
-            value={formData.nombre}
-            onChange={(event) => updateField("nombre", event.target.value)}
-            required
-          />
+        <div
+          className="patient-form"
+          aria-busy={isProcessing || isCheckingDocument}
+        >
+          {isSuccess ? (
+            <div
+              ref={feedbackRef}
+              role="status"
+              aria-live="polite"
+              tabIndex={-1}
+            >
+              <h3>Paciente registrado correctamente.</h3>
+              <p>
+                El paciente ya se encuentra disponible en el listado.
+              </p>
+            </div>
+          ) : (
+            <>
+              <Input
+                label="Nombre"
+                value={formData.nombre}
+                onChange={(event) =>
+                  updateField("nombre", event.target.value)
+                }
+                required
+                disabled={isProcessing}
+              />
 
-          <Input
-            label="Apellido"
-            value={formData.apellido}
-            onChange={(event) => updateField("apellido", event.target.value)}
-            required
-          />
+              <Input
+                label="Apellido"
+                value={formData.apellido}
+                onChange={(event) =>
+                  updateField("apellido", event.target.value)
+                }
+                required
+                disabled={isProcessing}
+              />
 
-          <Select
-            label="Tipo de documento"
-            value={formData.tipoDocumento}
-            onChange={(event) =>
-              updateField("tipoDocumento", event.target.value as DocumentType)
-            }
-            options={documentOptions}
-          />
+              <Select
+                label="Tipo de documento"
+                value={formData.tipoDocumento}
+                onChange={(event) =>
+                  updateField(
+                    "tipoDocumento",
+                    event.target.value as DocumentType
+                  )
+                }
+                options={documentOptions}
+                disabled={
+                  isProcessing ||
+                  (!editingId && isCheckingDocument)
+                }
+              />
 
-          <Input
-            label="Número de documento"
-            value={formData.numeroDocumento}
-            onChange={(event) =>
-              updateField("numeroDocumento", event.target.value)
-            }
-            required
-          />
+              <Input
+                label="Número de documento"
+                value={formData.numeroDocumento}
+                onChange={(event) =>
+                  updateField(
+                    "numeroDocumento",
+                    event.target.value
+                  )
+                }
+                required
+                disabled={
+                  isProcessing ||
+                  (!editingId && isCheckingDocument)
+                }
+              />
 
-          <Input
-            label="Fecha de nacimiento"
-            type="date"
-            value={formData.fechaNacimiento}
-            onChange={(event) =>
-              updateField("fechaNacimiento", event.target.value)
-            }
-            required
-          />
+              {!editingId && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCheckDocument}
+                    disabled={
+                      isCheckingDocument ||
+                      isProcessing ||
+                      (patientForm.status === "error" &&
+                        patientForm.stage === "duplicate")
+                    }
+                  >
+                    {isCheckingDocument
+                      ? "Verificando..."
+                      : canRetryLookup
+                        ? "Reintentar verificación"
+                        : "Verificar documento"}
+                  </Button>
 
-          <Input
-            label="Teléfono"
-            value={formData.telefono}
-            onChange={(event) => updateField("telefono", event.target.value)}
-            required
-          />
+                  <p role="status" aria-live="polite">
+                    {isCheckingDocument &&
+                      "Consultando si el documento ya está registrado..."}
 
-          <Input
-            label="Email"
-            value={formData.email}
-            onChange={(event) => updateField("email", event.target.value)}
-          />
+                    {patientForm.status === "draft" &&
+                      patientForm.documentVerified &&
+                      "Documento disponible. Podés continuar con el registro."}
+                  </p>
+                </>
+              )}
 
-          <Select
-            label="Cobertura médica"
-            value={formData.coberturaId}
-            onChange={(event) =>
-              updateField("coberturaId", event.target.value)
-            }
-            options={coverageOptions}
-          />
+              <Input
+                label="Fecha de nacimiento"
+                type="date"
+                value={formData.fechaNacimiento}
+                onChange={(event) =>
+                  updateField(
+                    "fechaNacimiento",
+                    event.target.value
+                  )
+                }
+                required
+                disabled={isProcessing}
+              />
 
-          {error && (
-            <p className="patient-form__error" role="alert">
-              {error}
-            </p>
+              <Input
+                label="Teléfono"
+                value={formData.telefono}
+                onChange={(event) =>
+                  updateField("telefono", event.target.value)
+                }
+                required
+                disabled={isProcessing}
+              />
+
+              <Input
+                label="Email"
+                value={formData.email}
+                onChange={(event) =>
+                  updateField("email", event.target.value)
+                }
+                disabled={isProcessing}
+              />
+
+              <Select
+                label="Cobertura médica"
+                value={formData.coberturaId}
+                onChange={(event) =>
+                  updateField("coberturaId", event.target.value)
+                }
+                options={coverageOptions}
+                disabled={isProcessing}
+              />
+
+              {feedbackMessage && (
+                <p
+                  ref={feedbackRef}
+                  className="patient-form__error"
+                  role="alert"
+                  tabIndex={-1}
+                >
+                  {feedbackMessage}
+                </p>
+              )}
+
+              {isProcessing && (
+                <p role="status" aria-live="polite">
+                  Registrando paciente. Esperá un momento...
+                </p>
+              )}
+            </>
           )}
         </div>
       </Modal>
