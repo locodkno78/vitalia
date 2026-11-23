@@ -51,6 +51,8 @@ describe("AppointmentListPage - navegación y foco", () => {
         patients={[patient]}
         specialties={[] as Specialty[]}
         professionals={[] as Professional[]}
+        coverages={[]}
+        onEditAppointment={() => {}}
         onCreateAppointment={onCreateAppointment}
         onConfirmAppointment={onConfirmAppointment}
         onAttendance={onAttendance}

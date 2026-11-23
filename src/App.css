@@ -87,6 +87,12 @@
   color: var(--text-primary);
 }
 
+/* Foco visible para navegación por teclado */
+.main-navigation button:focus-visible {
+  outline: 3px solid var(--info);
+  outline-offset: 3px;
+}
+
 @media (max-width: 600px) {
   .main-navigation {
     align-items: stretch;
@@ -108,3 +114,4 @@
     justify-content: center;
   }
 }
+
