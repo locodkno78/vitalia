@@ -1,9 +1,12 @@
+
 import { useEffect, useRef, useState } from "react";
 
 import AppointmentListPage from "./pages/AppointmentListPage";
 import AppointmentCreatePage from "./pages/AppointmentCreatePage";
 import PatientManagementPage from "./pages/PatientManagementPage";
 import MasterDataPage from "./pages/MasterDataPage";
+import ComponentCatalogPage from "./pages/ComponentCatalogPage";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 
 import {
   appointments as initialAppointments,
@@ -24,13 +27,23 @@ import type {
 } from "./types";
 
 import { canConfirmAppointment } from "./utils/confirmationValidation";
-import { validateAppointmentDate } from "./utils/appointmentValidation";
+import { isAppointmentDataValid } from "./utils/appointmentDataValidation";
 import { useTheme } from "./hooks/useTheme";
 import { Monitor, Moon, Sun } from "lucide-react";
 
 import "./App.css";
 
-type CurrentPage = "list" | "create" | "patients" | "masters";
+type CurrentPage =
+  | "list"
+  | "create"
+  | "edit"
+  | "patients"
+  | "masters"
+  | "catalog";
+
+function getInitialPage(): CurrentPage {
+  return window.location.pathname === "/catalogo" ? "catalog" : "list";
+}
 
 function App() {
   const { mode, setMode } = useTheme();
@@ -48,12 +61,39 @@ function App() {
 
   const [coverages, setCoverages] = useState<Coverage[]>(initialCoverages);
 
-  const [currentPage, setCurrentPage] = useState<CurrentPage>("list");
+  const [currentPage, setCurrentPage] =
+    useState<CurrentPage>(getInitialPage);
 
-  // Referencia al contenido principal para gestionar el foco.
+  const [appointmentToEdit, setAppointmentToEdit] =
+    useState<Appointment | null>(null);
+
   const mainContentRef = useRef<HTMLElement>(null);
 
-  // Llevar el foco al contenido principal cada vez que cambia la vista.
+  // Navegación entre pantallas y actualización de la URL.
+  function navigateTo(page: CurrentPage) {
+    const newPath = page === "catalog" ? "/catalogo" : "/";
+
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({}, "", newPath);
+    }
+
+    setCurrentPage(page);
+  }
+
+  // Permitir volver y avanzar con los botones del navegador.
+  useEffect(() => {
+    function handlePopState() {
+      setCurrentPage(getInitialPage());
+    }
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  // Llevar el foco al contenido principal cuando cambia la vista.
   useEffect(() => {
     mainContentRef.current?.focus();
   }, [currentPage]);
@@ -64,50 +104,64 @@ function App() {
     { mode: "system", label: "Sistema", icon: Monitor },
   ] as const;
 
-  // Crear turno con validación centralizada.
   function handleCreateAppointment(appointment: Appointment) {
-    const selectedPatient = patients.find(
-      (patient) =>
-        patient.id === appointment.pacienteId && patient.activo
+    const isValid = isAppointmentDataValid(
+      appointment,
+      patients,
+      specialties,
+      professionals,
     );
 
-    const selectedSpecialty = specialties.find(
-      (specialty) =>
-        specialty.idEspecialidad === appointment.especialidadId &&
-        specialty.habilitada
-    );
-
-    const selectedProfessional = professionals.find(
-      (professional) =>
-        professional.idProfesional === appointment.profesionalId &&
-        professional.activo &&
-        professional.especialidadId === appointment.especialidadId
-    );
-
-    const dateError = validateAppointmentDate(appointment.fechaTurno);
-
-    const validTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(
-      appointment.horaTurno
-    );
-
-    if (
-      !selectedPatient ||
-      !selectedSpecialty ||
-      !selectedProfessional ||
-      dateError ||
-      !validTime
-    ) {
+    if (!isValid) {
       return;
     }
 
     setAppointments((previous) => [...previous, appointment]);
-    setCurrentPage("list");
+    setAppointmentToEdit(null);
+    navigateTo("list");
   }
 
-  // Confirmar únicamente turnos habilitados para confirmación.
+  function handleUpdateAppointment(updatedAppointment: Appointment) {
+    const originalAppointment = appointments.find(
+      (appointment) =>
+        appointment.idTurno === updatedAppointment.idTurno,
+    );
+
+    const isOriginalDate =
+      originalAppointment?.fechaTurno === updatedAppointment.fechaTurno;
+
+    const isValid = isAppointmentDataValid(
+      updatedAppointment,
+      patients,
+      specialties,
+      professionals,
+      isOriginalDate,
+    );
+
+    if (!isValid) {
+      return;
+    }
+
+    setAppointments((previous) =>
+      previous.map((appointment) =>
+        appointment.idTurno === updatedAppointment.idTurno
+          ? updatedAppointment
+          : appointment,
+      ),
+    );
+
+    setAppointmentToEdit(null);
+    navigateTo("list");
+  }
+
+  function handleEditAppointment(appointment: Appointment) {
+    setAppointmentToEdit(appointment);
+    navigateTo("edit");
+  }
+
   function handleConfirmAppointment(
     appointmentId: string,
-    channel: ConfirmationChannel
+    channel: ConfirmationChannel,
   ) {
     setAppointments((previous) =>
       previous.map((appointment) => {
@@ -128,12 +182,8 @@ function App() {
         const confirmationDate = new Date();
 
         const year = confirmationDate.getFullYear();
-        const month = String(
-          confirmationDate.getMonth() + 1
-        ).padStart(2, "0");
-        const day = String(
-          confirmationDate.getDate()
-        ).padStart(2, "0");
+        const month = String(confirmationDate.getMonth() + 1).padStart(2, "0");
+        const day = String(confirmationDate.getDate()).padStart(2, "0");
 
         return {
           ...appointment,
@@ -141,20 +191,19 @@ function App() {
           fechaConfirmacion: `${year}-${month}-${day}`,
           viaConfirmacion: channel,
         };
-      })
+      }),
     );
   }
 
-  // Registrar ingreso, egreso o ausencia.
   function handleAttendance(
     appointmentId: string,
-    action: Exclude<AttendanceStatus, "pendiente">
+    action: Exclude<AttendanceStatus, "pendiente">,
   ) {
     const now = new Date();
 
     const currentTime = `${String(now.getHours()).padStart(
       2,
-      "0"
+      "0",
     )}:${String(now.getMinutes()).padStart(2, "0")}`;
 
     setAppointments((previous) =>
@@ -163,12 +212,10 @@ function App() {
           return appointment;
         }
 
-        // No modificar turnos ausentes o finalizados.
         if (appointment.ausente || appointment.horaEgreso) {
           return appointment;
         }
 
-        // Registrar ingreso una sola vez.
         if (
           action === "ingreso" &&
           appointment.confirmado &&
@@ -180,7 +227,6 @@ function App() {
           };
         }
 
-        // Registrar egreso únicamente después del ingreso.
         if (
           action === "egreso" &&
           appointment.confirmado &&
@@ -193,7 +239,6 @@ function App() {
           };
         }
 
-        // Marcar ausente únicamente si todavía no ingresó.
         if (
           action === "ausente" &&
           appointment.confirmado &&
@@ -206,12 +251,12 @@ function App() {
         }
 
         return appointment;
-      })
+      }),
     );
   }
 
   return (
-    <>
+    <ErrorBoundary>
       <nav className="main-navigation" aria-label="Navegación principal">
         <div className="main-navigation__brand">
           <span>Vitalia</span>
@@ -221,9 +266,15 @@ function App() {
         <div className="main-navigation__links">
           <button
             type="button"
-            className={currentPage === "list" ? "active" : ""}
-            aria-current={currentPage === "list" ? "page" : undefined}
-            onClick={() => setCurrentPage("list")}
+            className={
+              currentPage === "list" || currentPage === "edit" ? "active" : ""
+            }
+            aria-current={
+              currentPage === "list" || currentPage === "edit"
+                ? "page"
+                : undefined
+            }
+            onClick={() => navigateTo("list")}
           >
             Turnos
           </button>
@@ -232,7 +283,10 @@ function App() {
             type="button"
             className={currentPage === "create" ? "active" : ""}
             aria-current={currentPage === "create" ? "page" : undefined}
-            onClick={() => setCurrentPage("create")}
+            onClick={() => {
+              setAppointmentToEdit(null);
+              navigateTo("create");
+            }}
           >
             Nuevo turno
           </button>
@@ -241,7 +295,7 @@ function App() {
             type="button"
             className={currentPage === "patients" ? "active" : ""}
             aria-current={currentPage === "patients" ? "page" : undefined}
-            onClick={() => setCurrentPage("patients")}
+            onClick={() => navigateTo("patients")}
           >
             Pacientes
           </button>
@@ -250,9 +304,18 @@ function App() {
             type="button"
             className={currentPage === "masters" ? "active" : ""}
             aria-current={currentPage === "masters" ? "page" : undefined}
-            onClick={() => setCurrentPage("masters")}
+            onClick={() => navigateTo("masters")}
           >
             Datos maestros
+          </button>
+
+          <button
+            type="button"
+            className={currentPage === "catalog" ? "active" : ""}
+            aria-current={currentPage === "catalog" ? "page" : undefined}
+            onClick={() => navigateTo("catalog")}
+          >
+            Catálogo
           </button>
         </div>
 
@@ -288,8 +351,23 @@ function App() {
             patients={patients}
             specialties={specialties}
             professionals={professionals}
-            onCancel={() => setCurrentPage("list")}
+            onCancel={() => navigateTo("list")}
             onCreate={handleCreateAppointment}
+          />
+        )}
+
+        {currentPage === "edit" && appointmentToEdit && (
+          <AppointmentCreatePage
+            patients={patients}
+            specialties={specialties}
+            professionals={professionals}
+            appointmentToEdit={appointmentToEdit}
+            onCancel={() => {
+              setAppointmentToEdit(null);
+              navigateTo("list");
+            }}
+            onCreate={handleCreateAppointment}
+            onUpdate={handleUpdateAppointment}
           />
         )}
 
@@ -318,13 +396,20 @@ function App() {
             patients={patients}
             specialties={specialties}
             professionals={professionals}
-            onCreateAppointment={() => setCurrentPage("create")}
+            coverages={coverages}
+            onCreateAppointment={() => {
+              setAppointmentToEdit(null);
+              navigateTo("create");
+            }}
+            onEditAppointment={handleEditAppointment}
             onConfirmAppointment={handleConfirmAppointment}
             onAttendance={handleAttendance}
           />
         )}
+
+        {currentPage === "catalog" && <ComponentCatalogPage />}
       </main>
-    </>
+    </ErrorBoundary>
   );
 }
 

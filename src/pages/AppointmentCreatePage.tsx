@@ -1,3 +1,4 @@
+
 import {
   useMemo,
   useState,
@@ -7,7 +8,7 @@ import {
   type FormEvent,
 } from "react";
 
-import { ArrowLeft, CalendarPlus } from "lucide-react";
+import { ArrowLeft, CalendarPlus, Pencil } from "lucide-react";
 
 import type {
   Appointment,
@@ -34,6 +35,8 @@ import "./AppointmentCreatePage.css";
 interface AppointmentCreatePageProps {
   onCancel: () => void;
   onCreate: (appointment: Appointment) => void;
+  onUpdate?: (appointment: Appointment) => void;
+  appointmentToEdit?: Appointment | null;
   patients: Patient[];
   specialties: Specialty[];
   professionals: Professional[];
@@ -76,13 +79,28 @@ function createEmptyForm(): AppointmentDraft {
 function AppointmentCreatePage({
   onCancel,
   onCreate,
+  onUpdate,
+  appointmentToEdit,
   patients,
   specialties,
   professionals,
 }: AppointmentCreatePageProps) {
-  const [formData, setFormData] = useState<AppointmentDraft>(
-    createEmptyForm
-  );
+  const isEditing = Boolean(appointmentToEdit);
+
+  const [formData, setFormData] = useState<AppointmentDraft>(() => {
+    if (!appointmentToEdit) {
+      return createEmptyForm();
+    }
+
+    return {
+      pacienteId: appointmentToEdit.pacienteId,
+      especialidadId: appointmentToEdit.especialidadId,
+      profesionalId: appointmentToEdit.profesionalId,
+      fechaTurno: appointmentToEdit.fechaTurno,
+      horaTurno: appointmentToEdit.horaTurno,
+      comentarios: appointmentToEdit.comentarios ?? "",
+    };
+  });
 
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -90,20 +108,19 @@ function AppointmentCreatePage({
     appointmentFormReducer,
     {
       status: "draft",
-      values: createEmptyForm(),
+      values: formData,
     } as AppointmentFormState
   );
 
   const requestCounter = useRef(0);
   const isSubmittingRef = useRef(false);
 
-  // Referencias para gestionar el foco.
   const formRef = useRef<HTMLFormElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
   const shouldFocusValidationErrorsRef = useRef(false);
   const previousStatusRef = useRef(appointmentForm.status);
 
-  // Enfocar el primer campo inválido después de validar.
+  // Enfocar el primer campo inválido.
   useEffect(() => {
     if (!shouldFocusValidationErrorsRef.current) return;
 
@@ -117,7 +134,7 @@ function AppointmentCreatePage({
     firstInvalidField?.focus();
   }, [errors]);
 
-  // Enfocar los mensajes cuando cambia el estado del formulario.
+  // Enfocar los mensajes de error o éxito.
   useEffect(() => {
     const previousStatus = previousStatusRef.current;
     const currentStatus = appointmentForm.status;
@@ -169,18 +186,14 @@ function AppointmentCreatePage({
     })
   );
 
-  const isProcessing =
-    appointmentForm.status === "processing";
-
-  const isSuccess =
-    appointmentForm.status === "success";
+  const isProcessing = appointmentForm.status === "processing";
+  const isSuccess = appointmentForm.status === "success";
 
   const canRetry =
     appointmentForm.status === "error" &&
     appointmentForm.retryable;
 
-  const isDraft =
-    appointmentForm.status === "draft";
+  const isDraft = appointmentForm.status === "draft";
 
   function updateField(
     field: keyof AppointmentDraft,
@@ -242,9 +255,14 @@ function AppointmentCreatePage({
         "El profesional no está disponible para esta especialidad.";
     }
 
-    const dateError = validateAppointmentDate(
-      formData.fechaTurno
-    );
+    // Al editar, permitimos conservar la fecha original.
+    const isOriginalDate =
+      isEditing &&
+      appointmentToEdit?.fechaTurno === formData.fechaTurno;
+
+    const dateError = isOriginalDate
+      ? undefined
+      : validateAppointmentDate(formData.fechaTurno);
 
     if (dateError) {
       newErrors.fechaTurno = dateError;
@@ -267,17 +285,14 @@ function AppointmentCreatePage({
   }
 
   async function verifyPatient(patientId: string): Promise<boolean> {
-    // Simula una consulta asincrónica al servidor.
     await new Promise<void>((resolve) => {
       setTimeout(resolve, 500);
     });
 
-    const patientExists = patients.some(
+    return patients.some(
       (patient) =>
         patient.id === patientId && patient.activo
     );
-
-    return patientExists;
   }
 
   async function handleSubmit(
@@ -285,7 +300,6 @@ function AppointmentCreatePage({
   ) {
     event.preventDefault();
 
-    // Evita envíos duplicados.
     if (isSubmittingRef.current || isProcessing || isSuccess) {
       return;
     }
@@ -344,7 +358,6 @@ function AppointmentCreatePage({
     }
 
     try {
-      // Verificación asincrónica del paciente.
       const patientIsAvailable = await verifyPatient(
         formData.pacienteId
       );
@@ -365,38 +378,66 @@ function AppointmentCreatePage({
         return;
       }
 
-      // Simula el procesamiento del otorgamiento del turno.
       await new Promise<void>((resolve) => {
         setTimeout(resolve, 500);
       });
 
-      const newAppointment: Appointment = {
-        idTurno: `tur-${Date.now()}`,
-        pacienteId: formData.pacienteId,
-        especialidadId: formData.especialidadId,
-        profesionalId: formData.profesionalId,
-        fechaTurno: formData.fechaTurno,
-        horaTurno: formData.horaTurno,
-        confirmado: false,
-        fechaConfirmacion: null,
-        viaConfirmacion: null,
-        comentarios: formData.comentarios.trim(),
-        horaIngreso: null,
-        horaEgreso: null,
-        ausente: false,
-      };
+      if (appointmentToEdit) {
+        // EDITAR: conservar el ID y todos los datos
+        // que no forman parte del formulario.
+        if (!onUpdate) {
+          throw new Error(
+            "No se configuró la función para actualizar el turno."
+          );
+        }
 
-      onCreate(newAppointment);
+        const updatedAppointment: Appointment = {
+          ...appointmentToEdit,
+          pacienteId: formData.pacienteId,
+          especialidadId: formData.especialidadId,
+          profesionalId: formData.profesionalId,
+          fechaTurno: formData.fechaTurno,
+          horaTurno: formData.horaTurno,
+          comentarios: formData.comentarios.trim(),
+        };
 
-      dispatchAppointmentForm({
-        type: "RESOLVE",
-        appointmentId: newAppointment.idTurno,
-      });
+        onUpdate(updatedAppointment);
+
+        dispatchAppointmentForm({
+          type: "RESOLVE",
+          appointmentId: updatedAppointment.idTurno,
+        });
+      } else {
+        // CREAR: generar un turno completamente nuevo.
+        const newAppointment: Appointment = {
+          idTurno: `tur-${Date.now()}`,
+          pacienteId: formData.pacienteId,
+          especialidadId: formData.especialidadId,
+          profesionalId: formData.profesionalId,
+          fechaTurno: formData.fechaTurno,
+          horaTurno: formData.horaTurno,
+          confirmado: false,
+          fechaConfirmacion: null,
+          viaConfirmacion: null,
+          comentarios: formData.comentarios.trim(),
+          horaIngreso: null,
+          horaEgreso: null,
+          ausente: false,
+        };
+
+        onCreate(newAppointment);
+
+        dispatchAppointmentForm({
+          type: "RESOLVE",
+          appointmentId: newAppointment.idTurno,
+        });
+      }
     } catch {
       dispatchAppointmentForm({
         type: "REJECT",
-        message:
-          "No se pudo registrar el turno. Intentá nuevamente.",
+        message: isEditing
+          ? "No se pudo actualizar el turno. Intentá nuevamente."
+          : "No se pudo registrar el turno. Intentá nuevamente.",
         retryable: true,
       });
     } finally {
@@ -422,10 +463,14 @@ function AppointmentCreatePage({
             GESTIÓN DE TURNOS
           </span>
 
-          <h1>Otorgar un turno</h1>
+          <h1>
+            {isEditing ? "Modificar turno" : "Otorgar un turno"}
+          </h1>
 
           <p>
-            Completá los datos para registrar un nuevo turno.
+            {isEditing
+              ? "Modificá los datos del turno seleccionado."
+              : "Completá los datos para registrar un nuevo turno."}
           </p>
         </div>
 
@@ -433,7 +478,7 @@ function AppointmentCreatePage({
           className="appointment-create-icon"
           aria-hidden="true"
         >
-          <CalendarPlus size={28} />
+          {isEditing ? <Pencil size={28} /> : <CalendarPlus size={28} />}
         </div>
       </header>
 
@@ -445,7 +490,9 @@ function AppointmentCreatePage({
           aria-labelledby="appointment-form-title"
         >
           <h2 id="appointment-form-title" className="sr-only">
-            Formulario de otorgamiento de turno
+            {isEditing
+              ? "Formulario de modificación de turno"
+              : "Formulario de otorgamiento de turno"}
           </h2>
 
           <div className="appointment-create-section">
@@ -527,7 +574,11 @@ function AppointmentCreatePage({
                 label="Fecha del turno"
                 type="date"
                 required
-                min={getLocalDateString(new Date())}
+                min={
+                  isEditing
+                    ? undefined
+                    : getLocalDateString(new Date())
+                }
                 max={getMaximumDate()}
                 value={formData.fechaTurno}
                 error={errors.fechaTurno}
@@ -578,7 +629,11 @@ function AppointmentCreatePage({
               className="appointment-form-error"
               role="alert"
               tabIndex={-1}
-              aria-label="Error al registrar el turno"
+              aria-label={
+                isEditing
+                  ? "Error al modificar el turno"
+                  : "Error al registrar el turno"
+              }
             >
               {appointmentForm.message}
             </div>
@@ -586,7 +641,9 @@ function AppointmentCreatePage({
 
           {isProcessing && (
             <p role="status" aria-live="polite">
-              Verificando los datos y registrando el turno...
+              {isEditing
+                ? "Verificando los datos y actualizando el turno..."
+                : "Verificando los datos y registrando el turno..."}
             </p>
           )}
 
@@ -597,7 +654,9 @@ function AppointmentCreatePage({
               role="status"
               tabIndex={-1}
             >
-              ¡Turno registrado correctamente!
+              {isEditing
+                ? "¡Turno actualizado correctamente!"
+                : "¡Turno registrado correctamente!"}
             </div>
           )}
 
@@ -617,12 +676,23 @@ function AppointmentCreatePage({
                 disabled={isProcessing || (!isDraft && !canRetry)}
                 loading={isProcessing}
               >
-                <CalendarPlus size={18} />
+                {isEditing ? (
+                  <Pencil size={18} />
+                ) : (
+                  <CalendarPlus size={18} />
+                )}
+
                 {isProcessing
-                  ? "Registrando..."
+                  ? isEditing
+                    ? "Actualizando..."
+                    : "Registrando..."
                   : canRetry
-                    ? "Reintentar registro"
-                    : "Registrar turno"}
+                    ? isEditing
+                      ? "Reintentar actualización"
+                      : "Reintentar registro"
+                    : isEditing
+                      ? "Guardar cambios"
+                      : "Registrar turno"}
               </Button>
             )}
           </div>
